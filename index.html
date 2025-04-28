@@ -1,0 +1,171 @@
+<!DOCTYPE html>  
+<html>  
+<head>  
+<meta charset="utf-8">  
+<title>Ubicación del usuario en el mapa</title>  
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">  
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.11.0/mapbox-gl.css" rel="stylesheet">  
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.11.0/mapbox-gl.js"></script>  
+<style>  
+body { margin: 0; padding: 0; }  
+#map { position: absolute; top: 0; bottom: 0; width: 100%; }
+.info-panel {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: white;
+  padding: 10px;
+  border-radius: 4px;
+  z-index: 1;
+  max-width: 300px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+.mapboxgl-ctrl-geolocate {
+  background-color: #3498db;
+  color: white;
+}
+</style>  
+</head>  
+<body>  
+<div id="map"></div>
+<div class="info-panel">
+  <h3>Tu ubicación</h3>
+  <p id="location-info"></p>
+  <hr>
+  <h4>Buscar otro usuario</h4>
+  <input type="text" id="search-user-id" placeholder="Introduce la ID del usuario">
+  <button onclick="searchUser()">Localizar</button>
+  <p id="search-result"></p>
+</div>
+
+<script>  
+  // Añade tu token de acceso de Mapbox
+  mapboxgl.accessToken = 'pk.eyJ1IjoiNG5nM2wiLCJhIjoiY205cTJtN284MWI4dDJqb2J0cWRjZWk2dSJ9.Bk-OJNIYS060ah6qOH3BXw';
+  
+  const map = new mapboxgl.Map({  
+    container: 'map',
+    style: 'mapbox://styles/mapbox/streets-v12',
+    center: [0, 0], // Coordenadas iniciales (se actualizarán)
+    zoom: 2 // Zoom inicial (se actualizará)
+  });  
+
+  // Añadir control de geolocalización al mapa
+  const geolocateControl = new mapboxgl.GeolocateControl({
+    positionOptions: {
+      enableHighAccuracy: true
+    },
+    trackUserLocation: true,
+    showUserHeading: true,
+    showAccuracyCircle: true
+  });
+  
+  map.addControl(geolocateControl);
+
+  // Generar una ID única para el usuario
+  const userId = localStorage.getItem('userId') || `user-${Date.now()}`;
+  localStorage.setItem('userId', userId); // Guardar la ID en el almacenamiento local
+
+  // Mostrar la ID del usuario en el panel de información
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('location-info').innerHTML = 
+      `<strong>Tu ID:</strong> ${userId}<br>` +
+      `Cargando tu ubicación...`;
+  });
+
+  // Actualizar el panel de información cuando se obtiene la ubicación
+  geolocateControl.on('geolocate', function(e) {
+    const longitude = e.coords.longitude;
+    const latitude = e.coords.latitude;
+    const accuracy = e.coords.accuracy;
+
+    // Actualizar el texto con la información de ubicación
+    document.getElementById('location-info').innerHTML = 
+      `<strong>Tu ID:</strong> ${userId}<br>` +
+      `<strong>Coordenadas:</strong><br>` +
+      `Latitud: ${latitude.toFixed(6)}<br>` +
+      `Longitud: ${longitude.toFixed(6)}<br>` +
+      `Precisión: ${accuracy.toFixed(2)} metros<br>` +
+      `<div id="address">Obteniendo dirección...</div>`;
+    
+    // Obtener la dirección usando la API de geocodificación inversa de Mapbox
+    fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?access_token=${mapboxgl.accessToken}`)
+      .then(response => response.json())
+      .then(data => {
+        if (data.features && data.features.length > 0) {
+          const address = data.features[0].place_name;
+          document.getElementById('address').innerHTML = `<strong>Dirección:</strong><br>${address}`;
+        }
+      })
+      .catch(err => {
+        console.error('Error al obtener la dirección:', err);
+        document.getElementById('address').innerHTML = 'No se pudo obtener la dirección.';
+      });
+
+    // Actualizar la ubicación en el servidor
+    fetch('http://127.0.0.1:5000/update-location', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId, // Usar la ID generada
+        latitude,
+        longitude
+      })
+    }).then(response => response.json())
+      .then(data => console.log(data))
+      .catch(err => console.error('Error al actualizar la ubicación:', err));
+  });
+
+  // Manejar errores de geolocalización
+  geolocateControl.on('error', function(e) {
+    document.getElementById('location-info').innerHTML = 
+      `<strong>Error al obtener la ubicación:</strong><br>` +
+      `${e.message}<br><br>` +
+      `Asegúrate de que has dado permiso para acceder a tu ubicación.`;
+  });
+
+  // Activar automáticamente la geolocalización cuando se cargue el mapa
+  map.on('load', function() {
+    setTimeout(() => {
+      geolocateControl.trigger();
+    }, 1000);
+  });
+
+  // Función para buscar y localizar a otro usuario por su ID
+  function searchUser() {
+    const searchUserId = document.getElementById('search-user-id').value;
+    if (!searchUserId) {
+      document.getElementById('search-result').innerHTML = 'Por favor, introduce una ID válida.';
+      return;
+    }
+
+    fetch(`http://127.0.0.1:5000/get-location/${searchUserId}`)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Usuario no encontrado');
+        }
+        return response.json();
+      })
+      .then(location => {
+        const { latitude, longitude } = location;
+
+        // Centrar el mapa en la ubicación del usuario
+        map.flyTo({
+          center: [longitude, latitude],
+          zoom: 14
+        });
+
+        // Mostrar la ubicación en el panel de resultados
+        document.getElementById('search-result').innerHTML = 
+          `<strong>Ubicación del usuario ${searchUserId}:</strong><br>` +
+          `Latitud: ${latitude.toFixed(6)}<br>` +
+          `Longitud: ${longitude.toFixed(6)}`;
+      })
+      .catch(err => {
+        console.error(err);
+        document.getElementById('search-result').innerHTML = 
+          `<strong>Error:</strong> No se pudo localizar al usuario.`;
+      });
+  }
+</script>  
+</body>  
+</html>
