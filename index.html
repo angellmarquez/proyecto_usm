@@ -29,7 +29,10 @@ body { margin: 0; padding: 0; }
 <body>  
 <div id="map"></div>
 <div class="info-panel">
-  <h3>Tu ubicación</h3>
+  <h3>Bienvenido</h3>
+  <p id="welcome-message">¡Bienvenido a la aplicación de localización en tiempo real!</p>
+  <hr>
+  <h4>Tu ubicación</h4>
   <p id="location-info"></p>
   <hr>
   <h4>Buscar otro usuario</h4>
@@ -65,11 +68,11 @@ body { margin: 0; padding: 0; }
   const userId = localStorage.getItem('userId') || `user-${Date.now()}`;
   localStorage.setItem('userId', userId); // Guardar la ID en el almacenamiento local
 
-  // Mostrar la ID del usuario en el panel de información
+  // Mostrar un mensaje de bienvenida al cargar la página
   document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('location-info').innerHTML = 
-      `<strong>Tu ID:</strong> ${userId}<br>` +
-      `Cargando tu ubicación...`;
+    document.getElementById('welcome-message').innerHTML = 
+      `¡Bienvenido a la aplicación de localización en tiempo real!<br>` +
+      `Tu ID única es: <strong>${userId}</strong>`;
   });
 
   // Variable para almacenar el marcador actual
