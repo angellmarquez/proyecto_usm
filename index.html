@@ -96,6 +96,17 @@ body { margin: 0; padding: 0; }
       .setLngLat([longitude, latitude])
       .addTo(map);
 
+    // Obtener la dirección del usuario principal
+    fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?access_token=${mapboxgl.accessToken}`)
+      .then(response => response.json())
+      .then(data => {
+        const address = data.features[0]?.place_name || 'Dirección no disponible';
+        document.getElementById('location-info').innerHTML = 
+          `<strong>Tu ID:</strong> ${userId}<br>` +
+          `<strong>Dirección:</strong> ${address}`;
+      })
+      .catch(err => console.error('Error al obtener la dirección:', err));
+
     // Actualizar la ubicación en el servidor
     fetch('https://proyecto-usm.onrender.com/update-location', {
       method: 'POST',
@@ -151,11 +162,18 @@ body { margin: 0; padding: 0; }
             .setLngLat([longitude, latitude])
             .addTo(map);
 
-          // Mostrar la ubicación en el panel de resultados
-          document.getElementById('search-result').innerHTML = 
-            `<strong>Ubicación del usuario ${searchUserId}:</strong><br>` +
-            `Latitud: ${latitude.toFixed(6)}<br>` +
-            `Longitud: ${longitude.toFixed(6)}`;
+          // Obtener la dirección del usuario buscado
+          fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?access_token=${mapboxgl.accessToken}`)
+            .then(response => response.json())
+            .then(data => {
+              const address = data.features[0]?.place_name || 'Dirección no disponible';
+              document.getElementById('search-result').innerHTML = 
+                `<strong>Ubicación del usuario ${searchUserId}:</strong><br>` +
+                `<strong>Dirección:</strong> ${address}<br>` +
+                `Latitud: ${latitude.toFixed(6)}<br>` +
+                `Longitud: ${longitude.toFixed(6)}`;
+            })
+            .catch(err => console.error('Error al obtener la dirección:', err));
         })
         .catch(err => {
           console.error(err);
