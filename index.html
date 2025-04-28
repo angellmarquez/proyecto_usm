@@ -24,6 +24,13 @@ body { margin: 0; padding: 0; }
   background-color: #3498db;
   color: white;
 }
+#loading-spinner {
+  display: none;
+  text-align: center;
+  margin-top: 10px;
+  font-size: 14px;
+  color: #3498db;
+}
 </style>  
 </head>  
 <body>  
@@ -39,6 +46,7 @@ body { margin: 0; padding: 0; }
   <input type="text" id="search-user-id" placeholder="Introduce la ID del usuario">
   <button onclick="startRealTimeTracking()">Localizar en tiempo real</button>
   <p id="search-result"></p>
+  <div id="loading-spinner">Cargando...</div>
 </div>
 
 <script>  
@@ -127,10 +135,14 @@ body { margin: 0; padding: 0; }
   // Función para iniciar el seguimiento en tiempo real
   function startRealTimeTracking() {
     const searchUserId = document.getElementById('search-user-id').value;
+    const loadingSpinner = document.getElementById('loading-spinner');
     if (!searchUserId) {
       document.getElementById('search-result').innerHTML = 'Por favor, introduce una ID válida.';
       return;
     }
+
+    // Mostrar el símbolo de cargando
+    loadingSpinner.style.display = 'block';
 
     // Limpiar cualquier intervalo previo
     if (trackingInterval) {
@@ -175,13 +187,20 @@ body { margin: 0; padding: 0; }
                 `<strong>Dirección:</strong> ${address}<br>` +
                 `Latitud: ${latitude.toFixed(6)}<br>` +
                 `Longitud: ${longitude.toFixed(6)}`;
+              // Ocultar el símbolo de cargando
+              loadingSpinner.style.display = 'none';
             })
-            .catch(err => console.error('Error al obtener la dirección:', err));
+            .catch(err => {
+              console.error('Error al obtener la dirección:', err);
+              loadingSpinner.style.display = 'none';
+            });
         })
         .catch(err => {
           console.error(err);
           document.getElementById('search-result').innerHTML = 
             `<strong>Error:</strong> No se pudo localizar al usuario.`;
+          // Ocultar el símbolo de cargando
+          loadingSpinner.style.display = 'none';
         });
     }, 5000); // Actualizar cada 5 segundos
   }
