@@ -2,7 +2,7 @@
 <html>  
 <head>  
 <meta charset="utf-8">  
-<title>Ubicación del usuario en el mapa</title>  
+<title>Ubicación del usuario en tiempo real</title>  
 <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">  
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.11.0/mapbox-gl.css" rel="stylesheet">  
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.11.0/mapbox-gl.js"></script>  
@@ -34,7 +34,7 @@ body { margin: 0; padding: 0; }
   <hr>
   <h4>Buscar otro usuario</h4>
   <input type="text" id="search-user-id" placeholder="Introduce la ID del usuario">
-  <button onclick="searchUser()">Localizar</button>
+  <button onclick="startRealTimeTracking()">Localizar en tiempo real</button>
   <p id="search-result"></p>
 </div>
 
@@ -72,34 +72,14 @@ body { margin: 0; padding: 0; }
       `Cargando tu ubicación...`;
   });
 
+  // Variable para almacenar el marcador actual
+  let currentMarker = null;
+  let trackingInterval = null;
+
   // Actualizar el panel de información cuando se obtiene la ubicación
   geolocateControl.on('geolocate', function(e) {
     const longitude = e.coords.longitude;
     const latitude = e.coords.latitude;
-    const accuracy = e.coords.accuracy;
-
-    // Actualizar el texto con la información de ubicación
-    document.getElementById('location-info').innerHTML = 
-      `<strong>Tu ID:</strong> ${userId}<br>` +
-      `<strong>Coordenadas:</strong><br>` +
-      `Latitud: ${latitude.toFixed(6)}<br>` +
-      `Longitud: ${longitude.toFixed(6)}<br>` +
-      `Precisión: ${accuracy.toFixed(2)} metros<br>` +
-      `<div id="address">Obteniendo dirección...</div>`;
-    
-    // Obtener la dirección usando la API de geocodificación inversa de Mapbox
-    fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?access_token=${mapboxgl.accessToken}`)
-      .then(response => response.json())
-      .then(data => {
-        if (data.features && data.features.length > 0) {
-          const address = data.features[0].place_name;
-          document.getElementById('address').innerHTML = `<strong>Dirección:</strong><br>${address}`;
-        }
-      })
-      .catch(err => {
-        console.error('Error al obtener la dirección:', err);
-        document.getElementById('address').innerHTML = 'No se pudo obtener la dirección.';
-      });
 
     // Actualizar la ubicación en el servidor
     fetch('https://proyecto-usm.onrender.com/update-location', {
@@ -115,69 +95,59 @@ body { margin: 0; padding: 0; }
       .catch(err => console.error('Error al actualizar la ubicación:', err));
   });
 
-  // Manejar errores de geolocalización
-  geolocateControl.on('error', function(e) {
-    document.getElementById('location-info').innerHTML = 
-      `<strong>Error al obtener la ubicación:</strong><br>` +
-      `${e.message}<br><br>` +
-      `Asegúrate de que has dado permiso para acceder a tu ubicación.`;
-  });
-
-  // Activar automáticamente la geolocalización cuando se cargue el mapa
-  map.on('load', function() {
-    setTimeout(() => {
-      geolocateControl.trigger();
-    }, 1000);
-  });
-
-  // Variable para almacenar el marcador actual
-  let currentMarker = null;
-
-  // Función para buscar y localizar a otro usuario por su ID
-  function searchUser() {
+  // Función para iniciar el seguimiento en tiempo real
+  function startRealTimeTracking() {
     const searchUserId = document.getElementById('search-user-id').value;
     if (!searchUserId) {
       document.getElementById('search-result').innerHTML = 'Por favor, introduce una ID válida.';
       return;
     }
 
-    fetch(`https://proyecto-usm.onrender.com/get-location/${searchUserId}`)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Usuario no encontrado');
-        }
-        return response.json();
-      })
-      .then(location => {
-        const { latitude, longitude } = location;
+    // Limpiar cualquier intervalo previo
+    if (trackingInterval) {
+      clearInterval(trackingInterval);
+    }
 
-        // Centrar el mapa en la ubicación del usuario
-        map.flyTo({
-          center: [longitude, latitude],
-          zoom: 14
+    // Iniciar un intervalo para actualizar la ubicación cada 5 segundos
+    trackingInterval = setInterval(() => {
+      fetch(`https://proyecto-usm.onrender.com/get-location/${searchUserId}`)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Usuario no encontrado');
+          }
+          return response.json();
+        })
+        .then(location => {
+          const { latitude, longitude } = location;
+
+          // Centrar el mapa en la ubicación del usuario
+          map.flyTo({
+            center: [longitude, latitude],
+            zoom: 14
+          });
+
+          // Eliminar el marcador actual si existe
+          if (currentMarker) {
+            currentMarker.remove();
+          }
+
+          // Agregar un nuevo marcador en la ubicación del usuario
+          currentMarker = new mapboxgl.Marker({ color: 'red' }) // Marcador rojo
+            .setLngLat([longitude, latitude])
+            .addTo(map);
+
+          // Mostrar la ubicación en el panel de resultados
+          document.getElementById('search-result').innerHTML = 
+            `<strong>Ubicación del usuario ${searchUserId}:</strong><br>` +
+            `Latitud: ${latitude.toFixed(6)}<br>` +
+            `Longitud: ${longitude.toFixed(6)}`;
+        })
+        .catch(err => {
+          console.error(err);
+          document.getElementById('search-result').innerHTML = 
+            `<strong>Error:</strong> No se pudo localizar al usuario.`;
         });
-
-        // Eliminar el marcador actual si existe
-        if (currentMarker) {
-          currentMarker.remove();
-        }
-
-        // Agregar un nuevo marcador en la ubicación del usuario
-        currentMarker = new mapboxgl.Marker({ color: 'red' }) // Marcador rojo
-          .setLngLat([longitude, latitude])
-          .addTo(map);
-
-        // Mostrar la ubicación en el panel de resultados
-        document.getElementById('search-result').innerHTML = 
-          `<strong>Ubicación del usuario ${searchUserId}:</strong><br>` +
-          `Latitud: ${latitude.toFixed(6)}<br>` +
-          `Longitud: ${longitude.toFixed(6)}`;
-      })
-      .catch(err => {
-        console.error(err);
-        document.getElementById('search-result').innerHTML = 
-          `<strong>Error:</strong> No se pudo localizar al usuario.`;
-      });
+    }, 5000); // Actualizar cada 5 segundos
   }
 </script>  
 </body>  
