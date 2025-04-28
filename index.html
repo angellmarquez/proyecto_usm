@@ -130,6 +130,9 @@ body { margin: 0; padding: 0; }
     }, 1000);
   });
 
+  // Variable para almacenar el marcador actual
+  let currentMarker = null;
+
   // Función para buscar y localizar a otro usuario por su ID
   function searchUser() {
     const searchUserId = document.getElementById('search-user-id').value;
@@ -153,6 +156,16 @@ body { margin: 0; padding: 0; }
           center: [longitude, latitude],
           zoom: 14
         });
+
+        // Eliminar el marcador actual si existe
+        if (currentMarker) {
+          currentMarker.remove();
+        }
+
+        // Agregar un nuevo marcador en la ubicación del usuario
+        currentMarker = new mapboxgl.Marker({ color: 'red' }) // Marcador rojo
+          .setLngLat([longitude, latitude])
+          .addTo(map);
 
         // Mostrar la ubicación en el panel de resultados
         document.getElementById('search-result').innerHTML = 
