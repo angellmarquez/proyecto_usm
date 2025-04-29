@@ -3,7 +3,7 @@
 <head>  
 <meta charset="utf-8">  
 <title>Ubicación del usuario en tiempo real</title>  
-<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">  
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">  
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.11.0/mapbox-gl.css" rel="stylesheet">  
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.11.0/mapbox-gl.js"></script>  
 <style>  
@@ -19,25 +19,48 @@ body { margin: 0; padding: 0; }
   z-index: 1;
   max-width: 300px;
   box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  transition: transform 0.3s ease-in-out;
+}
+.info-panel.hidden {
+  transform: translateX(-110%);
+}
+.toggle-button {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px;
+  cursor: pointer;
+  z-index: 2;
+}
+.toggle-button:hover {
+  background: #2874a6;
 }
 .mapboxgl-ctrl-geolocate {
   background-color: #3498db;
   color: white;
 }
-#loading-spinner {
-  display: none;
-  text-align: center;
-  margin-top: 10px;
+.welcome-message {
+  background: #f1f1f1;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 10px;
   font-size: 14px;
-  color: #3498db;
+  color: #333;
+  text-align: center;
 }
 </style>  
 </head>  
 <body>  
 <div id="map"></div>
-<div class="info-panel">
-  <h3>Bienvenido</h3>
-  <p id="welcome-message">¡Bienvenido a la aplicación de localización en tiempo real!</p>
+<button class="toggle-button" onclick="toggleInfoPanel()">☰</button>
+<div id="info-panel" class="info-panel">
+  <div class="welcome-message" id="welcome-message">
+    Prueba de funcionamiento de localización en tiempo real
+  </div>
   <hr>
   <h4>Tu ubicación</h4>
   <p id="location-info"></p>
@@ -46,7 +69,6 @@ body { margin: 0; padding: 0; }
   <input type="text" id="search-user-id" placeholder="Introduce la ID del usuario">
   <button onclick="startRealTimeTracking()">Localizar en tiempo real</button>
   <p id="search-result"></p>
-  <div id="loading-spinner">Cargando...</div>
 </div>
 
 <script>  
@@ -79,9 +101,15 @@ body { margin: 0; padding: 0; }
   // Mostrar un mensaje de bienvenida al cargar la página
   document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('welcome-message').innerHTML = 
-      `¡Bienvenido a la aplicación de localización en tiempo real!<br>` +
-      `Tu ID única es: <strong>${userId}</strong>`;
+      `Prueba de funcionamiento de localización en tiempo real`;
   });
+
+  // Función para alternar la visibilidad del panel de información
+  function toggleInfoPanel() {
+    const infoPanel = document.getElementById('info-panel');
+    const isHidden = infoPanel.classList.toggle('hidden');
+    localStorage.setItem('infoPanelHidden', isHidden); // Guardar el estado en localStorage
+  }
 
   // Variable para almacenar el marcador actual
   let currentMarker = null;
@@ -135,14 +163,10 @@ body { margin: 0; padding: 0; }
   // Función para iniciar el seguimiento en tiempo real
   function startRealTimeTracking() {
     const searchUserId = document.getElementById('search-user-id').value;
-    const loadingSpinner = document.getElementById('loading-spinner');
     if (!searchUserId) {
       document.getElementById('search-result').innerHTML = 'Por favor, introduce una ID válida.';
       return;
     }
-
-    // Mostrar el símbolo de cargando
-    loadingSpinner.style.display = 'block';
 
     // Limpiar cualquier intervalo previo
     if (trackingInterval) {
@@ -187,20 +211,13 @@ body { margin: 0; padding: 0; }
                 `<strong>Dirección:</strong> ${address}<br>` +
                 `Latitud: ${latitude.toFixed(6)}<br>` +
                 `Longitud: ${longitude.toFixed(6)}`;
-              // Ocultar el símbolo de cargando
-              loadingSpinner.style.display = 'none';
             })
-            .catch(err => {
-              console.error('Error al obtener la dirección:', err);
-              loadingSpinner.style.display = 'none';
-            });
+            .catch(err => console.error('Error al obtener la dirección:', err));
         })
         .catch(err => {
           console.error(err);
           document.getElementById('search-result').innerHTML = 
             `<strong>Error:</strong> No se pudo localizar al usuario.`;
-          // Ocultar el símbolo de cargando
-          loadingSpinner.style.display = 'none';
         });
     }, 5000); // Actualizar cada 5 segundos
   }
